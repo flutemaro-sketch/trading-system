@@ -1,0 +1,30 @@
+# 機密情報
+.env
+*.key
+*.pem
+
+# Python仮想環境
+venv/
+env/
+.venv/
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 出力データ(必要なら個別に追加)
+output/*.csv
+!output/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# ログ
+*.log

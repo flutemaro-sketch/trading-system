@@ -12,12 +12,16 @@ import json
 import logging
 import tkinter as tk
 import threading
+from datetime import datetime, date
 from pathlib import Path
 from queue import Queue, Empty
 from typing import Dict, Optional
 
 from .board_unit import BoardUnit, STOCK_NAMES
 from ..kabu_api.websocket_client import KabuWebSocketClient
+from ..monitors.candle_builder import CandleBuilder
+from ..monitors.pennant_detector import PennantDetector
+from ..monitors.alert_popup import AlertPopup
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +49,13 @@ class MainWindow:
 
         self.data_queue  = data_queue
         self.kabu_client = kabu_client
+
+        # ── パターン検知エンジン
+        self._candle_builder  = CandleBuilder(interval_minutes=5, max_candles=60)
+        self._pennant_detector = PennantDetector()
+        self._alert_popup      = AlertPopup(root)
+        # 直前のアラート記録（同一銘柄の連続発火を防ぐ: 足3本分クールダウン）
+        self._last_alert: Dict[str, int] = {}  # symbol → 最後にアラートを出した足index
 
         # unit_key → BoardUnit
         self.units: Dict[str, BoardUnit] = {}
@@ -126,6 +137,66 @@ class MainWindow:
             # そのユニットのAリストに含まれている銘柄なら配信
             if code in unit.a_codes:
                 unit.push_board_data(code, board_data)
+
+        # ── ローソク足組み立て + ペナント検知（メインスレッド上で実行）
+        self._update_candle_and_detect(code, board_data)
+
+    def _update_candle_and_detect(self, code: str, board_data: dict):
+        """5分足を更新し、ペナントブレイクを検知してアラートを発報する"""
+        last_price = board_data.get("last_price", 0)
+        volume     = int(board_data.get("volume") or 0)
+        time_str   = board_data.get("time", "")
+
+        if not last_price or last_price <= 0:
+            return
+        if not time_str or time_str == "--:--:--":
+            return
+
+        # "HH:MM:SS" → datetime（今日の日付で補完）
+        try:
+            today = date.today()
+            t     = datetime.strptime(time_str, "%H:%M:%S")
+            timestamp = datetime(today.year, today.month, today.day,
+                                 t.hour, t.minute, t.second)
+        except Exception:
+            return
+
+        # ── 足更新（足が確定したときだけ None 以外が返る）
+        completed = self._candle_builder.update(code, last_price, volume, timestamp)
+        if completed is None:
+            return
+
+        # ── 確定足が出たのでペナント検知
+        candles = self._candle_builder.get_candles(
+            code, count=self._pennant_detector.max_candles)
+        result = self._pennant_detector.detect(candles, last_price)
+        if result is None:
+            return
+
+        # ── クールダウン（同一銘柄で足3本以内の連続発火を防ぐ）
+        candle_idx = self._candle_builder.candle_count(code)
+        last_idx   = self._last_alert.get(code, -999)
+        if candle_idx - last_idx < 3:
+            logger.debug(f"[ALERT クールダウン中] {code} "
+                         f"({candle_idx - last_idx}/3本 経過)")
+            return
+
+        self._last_alert[code] = candle_idx
+
+        # ── ポップアップ表示（すでにメインスレッド上）
+        symbol_name = board_data.get("symbol_name", "")
+        detail = (
+            f"抵抗線={result['resist_price']:.0f}  "
+            f"R²(H={result['r2_high']:.2f}/L={result['r2_low']:.2f})  "
+            f"収束率={result['width_ratio']:.0%}"
+        )
+        self._alert_popup.show(
+            symbol      = code,
+            symbol_name = symbol_name,
+            price       = last_price,
+            pattern     = result["pattern"],
+            detail      = detail,
+        )
 
     # ─────────────────────────────────────────────────────────
     #  kabuStation 購読管理

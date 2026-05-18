@@ -80,6 +80,10 @@ def make_board(base: float, open_p: float, volume: int,
         "asks_sign":      asks_sign,
         "bids":           bids,
         "bids_sign":      bids_sign,
+        "market_ask_qty": ask_total * 3,   # テスト用: 成行売
+        "market_bid_qty": bid_total * 4,   # テスト用: 成行買
+        "over_qty":       over_vol,        # テスト用: 売OVER = ask_total * 5
+        "under_qty":      under_vol,       # テスト用: 買UNDER = bid_total * 5
     }
 
 

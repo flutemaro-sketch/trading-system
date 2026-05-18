@@ -139,14 +139,26 @@ def parse_kabu_board(raw: dict) -> Optional[dict]:
                 signs.append(sign)
         return quotes, signs
 
+    # kabuStation はトップレベルフィールドで 成行/OVER/UNDER を提供
+    # OverSellQty / UnderBuyQty / MarketOrderSellQty / MarketOrderBuyQty
+    market_ask_qty = int(raw.get("MarketOrderSellQty") or 0)
+    market_bid_qty = int(raw.get("MarketOrderBuyQty")  or 0)
+    over_qty       = int(raw.get("OverSellQty")        or 0)
+    under_qty      = int(raw.get("UnderBuyQty")        or 0)
+
     # 売り気配（Sell1 が最良 = 最安値）
+    # Sign ベースの成行/OVER が来た場合も加算（フォールバック）
     asks_raw = []
     for i in range(1, 11):
         q = raw.get(f"Sell{i}") or {}
         price = q.get("Price")
         qty   = q.get("Qty", 0)
         sign  = _normalize_sign(str(q.get("Sign", "")))
-        if price and float(price) > 0:
+        if sign == "成行":
+            market_ask_qty += int(qty or 0)
+        elif sign == "OVER":
+            over_qty += int(qty or 0)
+        elif price and float(price) > 0:
             asks_raw.append((float(price), int(qty or 0), sign))
     asks, asks_sign = _dedup_quotes(asks_raw)
 
@@ -157,7 +169,11 @@ def parse_kabu_board(raw: dict) -> Optional[dict]:
         price = q.get("Price")
         qty   = q.get("Qty", 0)
         sign  = _normalize_sign(str(q.get("Sign", "")))
-        if price and float(price) > 0:
+        if sign == "成行":
+            market_bid_qty += int(qty or 0)
+        elif sign == "UNDER":
+            under_qty += int(qty or 0)
+        elif price and float(price) > 0:
             bids_raw.append((float(price), int(qty or 0), sign))
     bids, bids_sign = _dedup_quotes(bids_raw)
 
@@ -181,10 +197,18 @@ def parse_kabu_board(raw: dict) -> Optional[dict]:
     time_low  = _parse_time(raw.get("LowPriceTime"),      "%H:%M")
 
     # 現在値: CurrentPrice が 0 または None の場合は均衡価格(CalcPrice)を使用
+    # ただし CalcPrice == PreviousClose の場合は板寄せ前で意味がない → 0 扱い
     current_price = raw.get("CurrentPrice")
+    is_calc = False
     if not current_price:
-        current_price = raw.get("CalcPrice") or 0
-    is_calc = bool(raw.get("CalcPrice") and not raw.get("CurrentPrice"))
+        calc  = raw.get("CalcPrice") or 0
+        prev  = raw.get("PreviousClose") or 0
+        if calc and calc != prev:
+            # CalcPrice が前日終値と異なる → 意味のある均衡価格
+            current_price = calc
+            is_calc = True
+        else:
+            current_price = 0
 
     # 特別気配・連続気配の判定
     price_status = _detect_price_status(raw)
@@ -210,4 +234,8 @@ def parse_kabu_board(raw: dict) -> Optional[dict]:
         "asks_sign": asks_sign,
         "bids": bids,
         "bids_sign": bids_sign,
+        "market_ask_qty": market_ask_qty,  # 成行売注文数量
+        "market_bid_qty": market_bid_qty,  # 成行買注文数量
+        "over_qty":       over_qty,        # 売板10段より奥の合計
+        "under_qty":      under_qty,       # 買板10段より奥の合計
     }

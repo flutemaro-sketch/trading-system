@@ -108,12 +108,13 @@ LEFT_W = 125
 # ── 行識別子 ─────────────────────────────────────────────────
 # _ASK[0] = 表示最上段 = 最悪値（最高値の売気配）
 # _ASK[9] = 表示最下段 = 最良値（買い板に近い側）
-_OVER     = "over"
-_CURRENT  = "current"
+_NARINARI = "narinari"  # 成行行（市場注文・両側）
+_OVER     = "over"      # OVER行（売板10段より奥・売側のみ）
 _UNDER    = "under"
 _ASK      = [f"ask_{i}" for i in range(10)]
 _BID      = [f"bid_{i}" for i in range(10)]
-_ALL_ROWS = [_OVER] + _ASK + [_CURRENT] + _BID + [_UNDER]  # 成行行なし
+# _CURRENT 行は廃止: 現在値は ask/bid 板の中でハイライト表示
+_ALL_ROWS = [_NARINARI, _OVER] + _ASK + _BID + [_UNDER]
 
 
 class BoardUnit(tk.Frame):
@@ -345,19 +346,19 @@ class BoardUnit(tk.Frame):
 
         for r_idx, row_id in enumerate(_ALL_ROWS, start=1):
 
-            if row_id == _OVER:
+            if row_id == _NARINARI:
                 a_bg = ASK_CELL_BG; a_fg = ASK_FG
-                p_text = "OVER";    p_fg = OVER_FG;       p_font = FONT_HDR
+                p_text = "成行";    p_fg = OVER_FG;        p_font = FONT_HDR
+                b_bg = BID_CELL_BG; b_fg = BID_FG
+
+            elif row_id == _OVER:
+                a_bg = ASK_CELL_BG; a_fg = ASK_FG
+                p_text = "OVER";    p_fg = OVER_FG;        p_font = FONT_HDR
                 b_bg = ROW_BG;      b_fg = ROW_BG
 
             elif row_id in _ASK:
                 a_bg = ASK_CELL_BG; a_fg = ASK_FG
                 p_text = "";         p_fg = PRICE_ASK_FG; p_font = FONT_BOARD
-                b_bg = ROW_BG;      b_fg = ROW_BG
-
-            elif row_id == _CURRENT:
-                a_bg = ROW_BG;      a_fg = ROW_BG
-                p_text = "------";  p_fg = "#cc0000";     p_font = ("Courier New", 13, "bold")
                 b_bg = ROW_BG;      b_fg = ROW_BG
 
             elif row_id in _BID:
@@ -510,6 +511,15 @@ class BoardUnit(tk.Frame):
         t_hi = data.get("time_high", "")
         t_lo = data.get("time_low", "")
 
+        # 小数点価格の検出（データ実測 + TSE呼値ルール の OR）
+        _chk = [p for p in [last, opn, high, low, prev] if p]
+        _chk += [q.get("price", 0) for q in data.get("asks", []) + data.get("bids", [])
+                 if q.get("price", 0) > 0]
+        _has_frac   = any(abs(p - round(p)) > 0.001 for p in _chk)
+        _ref        = last or (_chk[0] if _chk else 0)
+        _tse_dec    = (self._get_tick(_ref) < 1) if _ref else False
+        self._decimal_price = _has_frac or _tse_dec
+
         # 上昇/下落でカラーを決定
         if prev > 0 and last > prev:
             price_fg  = "#cc0000"   # 赤
@@ -533,7 +543,7 @@ class BoardUnit(tk.Frame):
             "連売り": "#000099",
         }
         if last:
-            price_text = f"{last:,.0f}"
+            price_text = self._fmt_p(last)
             if is_calc:
                 price_text += " 均"
             self.price_label.config(text=price_text, fg=price_fg)
@@ -544,9 +554,9 @@ class BoardUnit(tk.Frame):
         if last and prev:
             diff = last - prev
             if diff > 0:
-                self.diff_label.config(text=f"+{diff:,.0f}", fg="#cc0000")
+                self.diff_label.config(text=f"+{self._fmt_p(diff)}", fg="#cc0000")
             elif diff < 0:
-                self.diff_label.config(text=f"{diff:,.0f}", fg="#0033cc")
+                self.diff_label.config(text=f"-{self._fmt_p(abs(diff))}", fg="#0033cc")
             else:
                 self.diff_label.config(text="±0", fg="#333333")
         else:
@@ -563,7 +573,7 @@ class BoardUnit(tk.Frame):
             self.change_label.config(text="----", fg="#888888")
 
         self.volume_label.config(text=f"{vol:,}" if vol else "----")
-        self.vwap_label.config(  text=f"V {vwap:,.0f}" if vwap else "V ----")
+        self.vwap_label.config(  text=f"V {self._fmt_p(vwap)}" if vwap else "V ----")
 
         # 始値・高値・安値・前日終値
         # HH:MM:SS → HH:MM に短縮
@@ -571,23 +581,16 @@ class BoardUnit(tk.Frame):
         hm_hi = t_hi[:5] if t_hi else ""
         hm_lo = t_lo[:5] if t_lo else ""
 
-        self.prev_label.config( text=f"前終 {prev:,.0f}"                if prev else "前終 ----")
-        self.open_label.config( text=f"始 {opn:,.0f} {hm_op}".strip()   if opn  else "始 ----")
-        self.high_label.config( text=f"高 {high:,.0f} {hm_hi}".strip() if high else "高 ----")
-        self.low_label.config(  text=f"安 {low:,.0f} {hm_lo}".strip()  if low  else "安 ----")
+        self.prev_label.config( text=f"前終 {self._fmt_p(prev)}"                          if prev else "前終 ----")
+        self.open_label.config( text=f"始 {self._fmt_p(opn)} {hm_op}".strip()             if opn  else "始 ----")
+        self.high_label.config( text=f"高 {self._fmt_p(high)} {hm_hi}".strip()           if high else "高 ----")
+        self.low_label.config(  text=f"安 {self._fmt_p(low)} {hm_lo}".strip()            if low  else "安 ----")
         self.time_label.config( text=tstr)
 
         # _update_board / _price_text で参照できるよう先に保存
         self._prev_close  = prev
         self._open_price  = opn
         self._vwap_price  = vwap
-
-        # ── 現値行（板の中央）— 他の価格行と同じ固定幅フォーマット
-        if last:
-            self._price_lbl[_CURRENT].config(
-                text=self._price_text(last), fg=price_fg)
-        else:
-            self._price_lbl[_CURRENT].config(text="------    ", fg="#888888")
 
         self._update_board(data)
         self._draw_candle(opn, high, low, last, prev)
@@ -668,18 +671,39 @@ class BoardUnit(tk.Frame):
             )
 
     @staticmethod
+    def _get_tick(price: float) -> float:
+        """東証 現物市場の呼値単位を返す（2024年ルール）
+        参考: JPX 株券等の取引値段に関する規則
+        """
+        if   price <   1_000: return 0.1
+        elif price <   3_000: return 0.5
+        elif price <   5_000: return 1
+        elif price <  10_000: return 5
+        elif price <  30_000: return 10
+        elif price <  50_000: return 50
+        elif price < 100_000: return 100
+        elif price < 500_000: return 500
+        else:                 return 1_000
+
+    @staticmethod
     def _vwap_tick_round(vwap: float) -> float:
         """東証の呼値単位に VWAP を丸めた目標価格を返す。
-        例: VWAP=12,194 → 呼値10円 → 12,190
+        例: VWAP=151.73 → 呼値0.1円 → 151.7
+            VWAP=1,624.8 → 呼値0.5円 → 1,625.0
+            VWAP=12,194  → 呼値10円  → 12,190
         """
-        if   vwap <   3_000: tick = 1
-        elif vwap <   5_000: tick = 5
+        if   vwap <   1_000: tick = 0.1
+        elif vwap <   3_000: tick = 0.5
+        elif vwap <   5_000: tick = 1
+        elif vwap <  10_000: tick = 5
         elif vwap <  30_000: tick = 10
         elif vwap <  50_000: tick = 50
         elif vwap < 100_000: tick = 100
-        elif vwap < 500_000: tick = 1_000
-        else:                tick = 10_000
-        return round(vwap / tick) * tick
+        elif vwap < 500_000: tick = 500
+        else:                tick = 1_000
+        result = round(vwap / tick) * tick
+        # 浮動小数点誤差を除去（0.1・0.5刻み時）
+        return round(result, 2) if tick < 1 else result
 
     def _price_color(self, price: float) -> str:
         """前日終値との比較で価格テキスト色を返す"""
@@ -694,30 +718,38 @@ class BoardUnit(tk.Frame):
 
     def _price_marker(self, price: float) -> str:
         """始値(O) / VWAP(V) と一致する価格にマーカーを返す（最大3文字 "O V"）
-        ・O: 始値と±0.5円以内（始値は板価格と一致するはず）
+        ・O: 始値と一致（0.1円刻みは±0.05、それ以外は±0.5）
         ・V: 板の中でVWAPに最も近い価格（_vwap_nearest に保存済み）
         """
         opn          = getattr(self, '_open_price',   0)
         vwap_nearest = getattr(self, '_vwap_nearest', 0)
+        tol = 0.05 if getattr(self, '_decimal_price', False) else 0.5
         markers = []
-        if opn          and abs(price - opn)          < 0.5:
+        if opn          and abs(price - opn)          < tol:
             markers.append("O")
-        if vwap_nearest and abs(price - vwap_nearest) < 0.5:
+        if vwap_nearest and abs(price - vwap_nearest) < tol:
             markers.append("V")
         return " ".join(markers)
+
+    def _fmt_p(self, price: float) -> str:
+        """価格フォーマット（0.1円刻み銘柄は小数1桁、それ以外は整数）"""
+        if getattr(self, '_decimal_price', False):
+            return f"{price:,.1f}"
+        return f"{price:,.0f}"
 
     def _price_text(self, price: float) -> str:
         """価格テキストを固定幅で返す（O/V マーカー有無でずれない）"""
         marker = self._price_marker(price)
         # マーカー部分は常に4文字分を確保（" V  " / " O  " / " O V" / "    "）
         suffix = f" {marker:<3}" if marker else "    "
-        return f"{price:,.0f}{suffix}"
+        return f"{self._fmt_p(price)}{suffix}"
 
     def _update_board(self, data: dict):
         asks      = data.get("asks", [])
         bids      = data.get("bids", [])
         asks_sign = data.get("asks_sign", [])
         bids_sign = data.get("bids_sign", [])
+        last      = data.get("last_price", 0)  # 現在値（ハイライト判定用）
 
         # ── VWAP を呼値単位に丸めた価格が板に存在すれば V を付ける
         vwap = getattr(self, '_vwap_price', 0)
@@ -729,21 +761,30 @@ class BoardUnit(tk.Frame):
         else:
             self._vwap_nearest = 0
 
-        # ── OVER
-        over_v = ""
-        for i, s in enumerate(asks_sign):
-            if s == "OVER" and i < len(asks):
-                over_v = f"{asks[i].get('volume', 0):,}"
-                break
-        self._ask_lbl[_OVER].config(text=over_v)
+        # ── 成行（市場注文・両側）
+        market_ask = data.get("market_ask_qty", 0)
+        market_bid = data.get("market_bid_qty", 0)
+        self._ask_lbl[_NARINARI].config(text=f"{market_ask:,}" if market_ask else "")
+        self._bid_lbl[_NARINARI].config(text=f"{market_bid:,}" if market_bid else "")
 
-        # ── UNDER
-        under_v = ""
-        for i, s in enumerate(bids_sign):
-            if s == "UNDER" and i < len(bids):
-                under_v = f"{bids[i].get('volume', 0):,}"
-                break
-        self._bid_lbl[_UNDER].config(text=under_v)
+        # ── OVER（売板10段より奥の注文合計・売側のみ）
+        over_qty = data.get("over_qty", 0)
+        if not over_qty:
+            for i, s in enumerate(asks_sign):
+                if s == "OVER" and i < len(asks):
+                    over_qty = asks[i].get("volume", 0)
+                    break
+        self._ask_lbl[_OVER].config(text=f"{over_qty:,}" if over_qty else "")
+
+        # ── UNDER（買板10段より奥の注文合計）
+        under_qty = data.get("under_qty", 0)
+        # フォールバック: 旧形式 bids_sign に "UNDER" があれば使用
+        if not under_qty:
+            for i, s in enumerate(bids_sign):
+                if s == "UNDER" and i < len(bids):
+                    under_qty = bids[i].get("volume", 0)
+                    break
+        self._bid_lbl[_UNDER].config(text=f"{under_qty:,}" if under_qty else "")
 
         # ── 売り気配（通常10段）
         # サイン情報を保持しながらフィルタ
@@ -754,23 +795,69 @@ class BoardUnit(tk.Frame):
         ]
         display_asks = list(reversed(normal_asks[:10]))
 
+        # 浮動小数点誤差のみ許容（事実上の完全一致）
+        tol = 0.001
+
+        # 現在値が ask/bid 板に含まれているか事前チェック
+        last_in_ask = last and any(
+            abs(a.get("price", 0) - last) < tol
+            for a, _ in normal_asks[:10]
+        )
+        last_in_bid = last and any(
+            abs(b.get("price", 0) - last) < tol
+            for b, _ in [
+                (b, bids_sign[i] if i < len(bids_sign) else "")
+                for i, b in enumerate(bids)
+                if i >= len(bids_sign) or bids_sign[i] not in ("UNDER", "成行")
+            ]
+        )
+        current_inserted = False  # スプレッド中間の現在値を空行に挿入済みか
+
         for idx, row_id in enumerate(_ASK):
             if idx < len(display_asks):
-                a, sign = display_asks[idx]
-                price   = a.get("price", 0)
-                vol     = a.get("volume", 0)
-                # O/V は価格列の右に（固定幅）、特/連は売数量列の左に表示
-                p_text  = self._price_text(price)
-                prefix  = f"{sign} " if sign in ("特", "連") else ""
-                self._price_lbl[row_id].config(text=p_text,
-                                               fg=self._price_color(price))
-                self._ask_lbl[row_id].config(text=f"{prefix}{vol:,}")
+                a, sign    = display_asks[idx]
+                price      = a.get("price", 0)
+                vol        = a.get("volume", 0)
+                p_text     = self._price_text(price)
+                prefix     = f"{sign} " if sign in ("特", "連") else ""
+                is_current = last and (abs(price - last) < tol)
+
+                if is_current:
+                    # 現在値行: 赤背景ハイライト
+                    self._price_lbl[row_id].config(
+                        text=p_text, bg="#cc0000", fg="white",
+                        font=("Courier New", 13, "bold"))
+                    self._ask_lbl[row_id].config(
+                        text=f"{prefix}{vol:,}", bg=ASK_CELL_BG)
+                    self._bid_lbl[row_id].config(text="", bg=ROW_BG)
+                else:
+                    self._price_lbl[row_id].config(
+                        text=p_text, bg=ROW_BG,
+                        fg=self._price_color(price), font=FONT_BOARD)
+                    self._ask_lbl[row_id].config(
+                        text=f"{prefix}{vol:,}", bg=ASK_CELL_BG)
+                    self._bid_lbl[row_id].config(text="", bg=ROW_BG)
+
                 if vol != self.last_ask_vols.get(price, -1):
-                    self._flash(self._ask_lbl[row_id], ASK_FLASH, ASK_CELL_BG, 700)
+                    if not is_current:
+                        self._flash(self._ask_lbl[row_id], ASK_FLASH, ASK_CELL_BG, 700)
                     self.last_ask_vols[price] = vol
+
+            elif (not last_in_ask and not last_in_bid
+                  and not current_inserted and last):
+                # スプレッド中間の現在値 → ask板の最初の空行に赤ハイライトで挿入
+                p_text = self._price_text(last)
+                self._price_lbl[row_id].config(
+                    text=p_text, bg="#cc0000", fg="white",
+                    font=("Courier New", 13, "bold"))
+                self._ask_lbl[row_id].config(text="", bg=ROW_BG)
+                self._bid_lbl[row_id].config(text="", bg=ROW_BG)
+                current_inserted = True
             else:
-                self._price_lbl[row_id].config(text="")
-                self._ask_lbl[row_id].config(text="")
+                self._price_lbl[row_id].config(
+                    text="--", fg="#aaaaaa", bg=ROW_BG, font=FONT_BOARD)
+                self._ask_lbl[row_id].config(text="", bg=ROW_BG)
+                self._bid_lbl[row_id].config(text="", bg=ROW_BG)
 
         # ── 買い気配（通常10段）
         normal_bids = [
@@ -778,23 +865,54 @@ class BoardUnit(tk.Frame):
             for i, b in enumerate(bids)
             if i >= len(bids_sign) or bids_sign[i] not in ("UNDER", "成行")
         ]
+        # ask板が満杯でスプレッド中間の場合、bid板先頭に現在値行を挿入
+        if not current_inserted and not last_in_ask and not last_in_bid and last:
+            bid_display = [({"price": last, "volume": -1}, "__CURRENT__")] + normal_bids
+        else:
+            bid_display = normal_bids
+
         for idx, row_id in enumerate(_BID):
-            if idx < len(normal_bids):
-                b, sign = normal_bids[idx]
-                price   = b.get("price", 0)
-                vol     = b.get("volume", 0)
-                # O/V は価格列の右に（固定幅）、特/連は買数量列の左に表示
-                p_text  = self._price_text(price)
-                prefix  = f"{sign} " if sign in ("特", "連") else ""
-                self._price_lbl[row_id].config(text=p_text,
-                                               fg=self._price_color(price))
-                self._bid_lbl[row_id].config(text=f"{prefix}{vol:,}")
-                if vol != self.last_bid_vols.get(price, -1):
+            if idx < len(bid_display):
+                b, sign    = bid_display[idx]
+                price      = b.get("price", 0)
+                vol        = b.get("volume", 0)
+                is_current = (sign == "__CURRENT__") or (
+                    last and (abs(price - last) < tol))
+
+                if is_current:
+                    # 現在値行: 赤背景ハイライト（数量なし or bid数量）
+                    p_text = self._price_text(last if sign == "__CURRENT__" else price)
+                    self._price_lbl[row_id].config(
+                        text=p_text, bg="#cc0000", fg="white",
+                        font=("Courier New", 13, "bold"))
+                    self._ask_lbl[row_id].config(text="", bg=ROW_BG)
+                    if sign == "__CURRENT__":
+                        # スプレッド中間挿入行：bid数量なし
+                        self._bid_lbl[row_id].config(text="", bg=ROW_BG)
+                    else:
+                        prefix = f"{sign} " if sign in ("特", "連") else ""
+                        self._bid_lbl[row_id].config(
+                            text=f"{prefix}{vol:,}", bg=BID_CELL_BG)
+                    current_inserted = True
+                else:
+                    p_text = self._price_text(price)
+                    prefix = f"{sign} " if sign in ("特", "連") else ""
+                    self._price_lbl[row_id].config(
+                        text=p_text, bg=ROW_BG,
+                        fg=self._price_color(price), font=FONT_BOARD)
+                    self._ask_lbl[row_id].config(text="", bg=ROW_BG)
+                    self._bid_lbl[row_id].config(
+                        text=f"{prefix}{vol:,}", bg=BID_CELL_BG)
+
+                if not is_current and vol != self.last_bid_vols.get(price, -1):
                     self._flash(self._bid_lbl[row_id], BID_FLASH, BID_CELL_BG, 700)
+                if not is_current:
                     self.last_bid_vols[price] = vol
             else:
-                self._price_lbl[row_id].config(text="")
-                self._bid_lbl[row_id].config(text="")
+                self._price_lbl[row_id].config(
+                    text="--", fg="#aaaaaa", bg=ROW_BG, font=FONT_BOARD)
+                self._ask_lbl[row_id].config(text="", bg=ROW_BG)
+                self._bid_lbl[row_id].config(text="", bg=ROW_BG)
 
     @staticmethod
     def _play_alert(status: str):
@@ -832,9 +950,9 @@ class BoardUnit(tk.Frame):
         self.prev_label.config(text="終 ----")
         self.time_label.config(text="--:--:--")
         self.candle_canvas.delete("all")
-        self._price_lbl[_CURRENT].config(text="------")
         for row_id in _ALL_ROWS:
             self._ask_lbl[row_id].config(text="")
             self._bid_lbl[row_id].config(text="")
-            if row_id not in (_OVER, _CURRENT, _UNDER):
-                self._price_lbl[row_id].config(text="")
+            if row_id not in (_OVER, _UNDER):
+                self._price_lbl[row_id].config(
+                    text="", bg=ROW_BG, font=FONT_BOARD)

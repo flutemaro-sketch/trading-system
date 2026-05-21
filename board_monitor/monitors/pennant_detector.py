@@ -1,16 +1,19 @@
 """
 ペナントブレイク検知エンジン（上方向）
 
-ペナントとは：
-  価格が三角収束（高値切り下がり + 安値切り上がり）を形成した後、
-  上側にブレイクアウトするパターン。
+検知対象パターン（3種類）:
+  ① 上昇三角形: 上値フラット（slope ≈ 0） + 下値切り上がり
+  ② 対称ペナント: 上値切り下がり（slope < 0） + 下値切り上がり
+  ③ 上昇ウェッジ: 上値緩やか上昇（slope > 0） + 下値急上昇
+  ※ 共通条件: h_slope < l_slope（収束） かつ l_slope > 0（下値切り上がり）
 
 判定アルゴリズム:
   1. 直近 min_candles〜max_candles 本のローソク足を使用
-  2. 高値ライン: 線形回帰の傾き < 0（切り下がり）かつ R² > 閾値
-  3. 安値ライン: 線形回帰の傾き > 0（切り上がり）かつ R² > 閾値
-  4. 収束確認: 末尾のスプレッド幅が先頭より縮小している
-  5. ブレイク: 現在値 > 高値トレンドラインの延長線
+  2. 収束確認: h_slope < l_slope（上値より下値の傾きが大きい）
+  3. 安値ライン: 線形回帰の傾き > 0（切り上がり必須）かつ R² > 閾値
+  4. 高値ライン: R² > 閾値
+  5. 幅の収束: 末尾のスプレッド幅が先頭より縮小している
+  6. ブレイク: 現在値 > 高値トレンドラインの延長線
 
 依存: numpy（pip install numpy）
 """
@@ -33,9 +36,9 @@ class PennantDetector:
     def __init__(
         self,
         min_candles:  int   = 8,    # 最低使用本数
-        max_candles:  int   = 25,   # 最大使用本数
-        r2_threshold: float = 0.35, # 線形性の閾値（低めに設定・緩め）
-        width_shrink: float = 0.15, # 収束率：末尾幅 ≦ 先頭幅 × (1 - この値)
+        max_candles:  int   = 50,   # 最大使用本数（スクエニ型 40〜50本対応）
+        r2_threshold: float = 0.25, # 線形性の閾値（上値フラットでR²低下を考慮）
+        width_shrink: float = 0.35, # 収束率：末尾幅 ≦ 先頭幅 × (1 - この値)
     ):
         self.min_candles  = min_candles
         self.max_candles  = max_candles
@@ -82,11 +85,11 @@ class PennantDetector:
         h_slope, h_inter, h_r2 = self._linreg(x, highs)
         l_slope, l_inter, l_r2 = self._linreg(x, lows)
 
-        # ── 条件1: 傾きの方向
-        if h_slope >= 0:
-            return None  # 高値が切り下がっていない
+        # ── 条件1: 傾きの方向（3パターン共通条件）
+        if h_slope >= l_slope:
+            return None  # 収束していない（平行 or 開いている）→ 上昇三角形・対称・ウェッジすべて対応
         if l_slope <= 0:
-            return None  # 安値が切り上がっていない
+            return None  # 安値が切り上がっていない（全パターン必須条件）
 
         # ── 条件2: 線形性（R²）
         if h_r2 < self.r2_threshold or l_r2 < self.r2_threshold:

@@ -1,0 +1,79 @@
+{
+  "date": "2026-05-22",
+  "total_signals": 28,
+  "stop_high_count": 3,
+  "market_condition": "強い上昇相場（防衛・グロース・インフラ全面高）",
+  "signals": [
+    {"no": 1,  "time": "09:44:59", "code": "402A", "name": "アクセルスペースHD",   "price": 791.0,    "session": "前場", "outcome": "上昇"},
+    {"no": 2,  "time": "09:49:58", "code": "6232", "name": "チービニ",             "price": 2761.0,   "session": "前場", "outcome": "上昇"},
+    {"no": 3,  "time": "09:54:57", "code": "7012", "name": "川崎重工業",           "price": 3163.0,   "session": "前場", "outcome": "上昇"},
+    {"no": 4,  "time": "09:54:58", "code": "9201", "name": "JAL",                  "price": 2579.0,   "session": "前場", "outcome": "上昇", "note": "監視外（削除済み）"},
+    {"no": 5,  "time": "09:55:03", "code": "9020", "name": "JR東日本",             "price": 3669.0,   "session": "前場", "outcome": "上昇", "note": "監視外（削除済み）"},
+    {"no": 6,  "time": "09:55:11", "code": "9202", "name": "ANAHD",               "price": 2803.0,   "session": "前場", "outcome": "上昇", "note": "監視外（削除済み）"},
+    {"no": 7,  "time": "09:59:58", "code": "7011", "name": "三菱重工業",           "price": 4013.0,   "session": "前場", "outcome": "上昇"},
+    {"no": 8,  "time": "10:14:58", "code": "3905", "name": "データセクション",     "price": 4625.0,   "session": "前場", "outcome": "ストップ高", "stop_high": true},
+    {"no": 9,  "time": "10:24:57", "code": "9348", "name": "（小型株）",           "price": 581.0,    "session": "前場", "outcome": "不明"},
+    {"no": 10, "time": "10:50:01", "code": "3905", "name": "データセクション",     "price": 4690.0,   "session": "前場", "outcome": "ストップ高", "stop_high": true, "repeat": 2},
+    {"no": 11, "time": "10:59:57", "code": "3103", "name": "ユニチカ",             "price": 1477.0,   "session": "前場", "outcome": "ストップ高", "stop_high": true},
+    {"no": 12, "time": "11:07:04", "code": "3905", "name": "データセクション",     "price": 4800.0,   "session": "前場", "outcome": "ストップ高", "stop_high": true, "repeat": 3},
+    {"no": 13, "time": "11:14:57", "code": "3103", "name": "ユニチカ",             "price": 1532.0,   "session": "前場", "outcome": "ストップ高", "stop_high": true, "repeat": 2},
+    {"no": 14, "time": "11:25:00", "code": "9201", "name": "JAL",                  "price": 2580.5,   "session": "前場", "outcome": "上昇", "note": "監視外（削除済み）"},
+    {"no": 15, "time": "12:29:57", "code": "3907", "name": "シンコースタジオ",     "price": 1274.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 16, "time": "12:29:57", "code": "5803", "name": "フジクラ",             "price": 4900.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 17, "time": "12:34:58", "code": "6232", "name": "チービニ",             "price": 2796.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 18, "time": "12:35:01", "code": "9201", "name": "JAL",                  "price": 2584.0,   "session": "後場", "outcome": "上昇", "note": "監視外（削除済み）"},
+    {"no": 19, "time": "12:44:57", "code": "5803", "name": "フジクラ",             "price": 4972.0,   "session": "後場", "outcome": "上昇", "repeat": 2},
+    {"no": 20, "time": "12:44:57", "code": "6981", "name": "村田製作所",           "price": 7137.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 21, "time": "12:49:59", "code": "9201", "name": "JAL",                  "price": 2587.0,   "session": "後場", "outcome": "上昇", "note": "監視外（削除済み）"},
+    {"no": 22, "time": "12:50:02", "code": "6232", "name": "チービニ",             "price": 2828.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 23, "time": "12:59:57", "code": "5803", "name": "フジクラ",             "price": 4987.0,   "session": "後場", "outcome": "上昇", "repeat": 3},
+    {"no": 24, "time": "13:04:58", "code": "6981", "name": "村田製作所",           "price": 7162.0,   "session": "後場", "outcome": "上昇", "repeat": 2},
+    {"no": 25, "time": "13:04:58", "code": "6232", "name": "チービニ",             "price": 2858.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 26, "time": "13:19:58", "code": "6857", "name": "アドバンテスト",       "price": 27025.0,  "session": "後場", "outcome": "上昇"},
+    {"no": 27, "time": "13:20:01", "code": "6232", "name": "チービニ",             "price": 2893.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 28, "time": "13:29:57", "code": "6981", "name": "村田製作所",           "price": 7206.0,   "session": "後場", "outcome": "上昇", "repeat": 3}
+  ],
+  "stop_high_stocks": [
+    {
+      "code": "186A",
+      "name": "アストロスケールHD",
+      "trigger": "open_break",
+      "first_signal_time": "09:00:47",
+      "first_signal_price": 1996.0,
+      "note": "始値ブレイクでシグナル → ストップ高"
+    },
+    {
+      "code": "3103",
+      "name": "ユニチカ",
+      "trigger": "pennant_break_up",
+      "first_signal_time": "10:59:57",
+      "first_signal_price": 1477.0,
+      "repeat_count": 2,
+      "note": "2回発報 → ストップ高。前日もOVER/UNDER逆転で+59,400円"
+    },
+    {
+      "code": "3905",
+      "name": "データセクション",
+      "trigger": "pennant_break_up",
+      "first_signal_time": "10:14:58",
+      "first_signal_price": 4625.0,
+      "repeat_count": 3,
+      "note": "3回発報 → ストップ高。複数回発報 = ストップ高の強いシグナル"
+    }
+  ],
+  "lessons_learned": [
+    "複数回発報銘柄（3回）はストップ高確率が高い",
+    "交通インフラ（JAL・ANA・JR）は地合い強い日に連動して一斉発動する",
+    "前日ストップ高銘柄（ユニチカ）は翌日も継続する",
+    "後場スタート直後の最初のブレイクが最も重要",
+    "9201(JAL)は削除済みのため4回のシグナルを見逃した"
+  ],
+  "system_config": {
+    "min_candles": 8,
+    "max_candles": 50,
+    "r2_threshold": 0.25,
+    "width_shrink": 0.35,
+    "interval_minutes": 5,
+    "monitored_stocks": 21
+  }
+}

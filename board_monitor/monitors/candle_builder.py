@@ -101,6 +101,12 @@ class CandleBuilder:
         """確定済み足の本数"""
         return len(self._candles.get(symbol, []))
 
+    def clear_all(self):
+        """全銘柄のローソク足データをクリア（シャットダウン時用）"""
+        self._candles.clear()
+        self._current.clear()
+        logger.info("[CandleBuilder] すべてのローソク足をクリアしました")
+
     # ─────────────────────────────────────────────────────────
     #  内部ヘルパー
     # ─────────────────────────────────────────────────────────

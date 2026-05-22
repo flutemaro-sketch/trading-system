@@ -57,6 +57,14 @@ class MainWindow:
         # 直前のアラート記録（同一銘柄の連続発火を防ぐ: 足3本分クールダウン）
         self._last_alert: Dict[str, int] = {}  # symbol → 最後にアラートを出した足index
 
+        # 始値アラート状態（1日1回ずつ発報）
+        # code → {"approach": bool, "break": bool, "date": date}
+        self._open_alerts: Dict[str, dict] = {}
+
+        # OVER/UNDER 逆転アラート状態
+        # code → "OVER" or "UNDER" or "" (前回の優勢サイド)
+        self._ou_state: Dict[str, str] = {}
+
         # unit_key → BoardUnit
         self.units: Dict[str, BoardUnit] = {}
 
@@ -64,10 +72,9 @@ class MainWindow:
         self._create_layout()
         self._load_settings()   # 起動時に前回の銘柄・ウィンドウ位置を復元
 
-        # データ受信スレッド
+        # データ受信ループ（メインスレッド: after で定期実行）
         self.polling = True
-        self.data_thread = threading.Thread(target=self._poll_queue, daemon=True)
-        self.data_thread.start()
+        self.root.after(50, self._poll_queue)
 
     # ─────────────────────────────────────────────────────────
     #  レイアウト構築
@@ -112,16 +119,32 @@ class MainWindow:
     # ─────────────────────────────────────────────────────────
 
     def _poll_queue(self):
-        """バックグラウンドスレッドでキューを監視"""
-        while self.polling:
+        """メインスレッドでキューを定期監視（遅延防止: 同一銘柄は最新データのみ処理）"""
+        latest: dict = {}
+        try:
+            while True:
+                data = self.data_queue.get_nowait()
+                if data.get("type") == "update":
+                    code = data.get("stock_code")
+                    if code:
+                        latest[code] = data  # 同一銘柄は最新で上書き
+                else:
+                    latest[f"__other_{id(data)}"] = data
+        except Empty:
+            pass
+        except Exception:
+            pass
+
+        # 最新データのみ処理（古いデータはスキップ）
+        for data in latest.values():
             try:
-                data = self.data_queue.get(timeout=1)
-                # Tkinter は必ずメインスレッドから操作する
-                self.root.after(0, self._process_data, data)
-            except Empty:
-                pass
+                self._process_data(data)
             except Exception:
                 pass
+
+        # 次のポーリング（50ms 間隔）
+        if self.polling:
+            self.root.after(50, self._poll_queue)
 
     def _process_data(self, data: dict):
         """受信データを該当ユニットへ配信"""
@@ -138,8 +161,115 @@ class MainWindow:
             if code in unit.a_codes:
                 unit.push_board_data(code, board_data)
 
+        # ── 始値ブレイク / 始値接近アラート
+        self._check_open_price_alert(code, board_data)
+
+        # ── OVER/UNDER 逆転アラート
+        self._check_ou_alert(code, board_data)
+
         # ── ローソク足組み立て + ペナント検知（メインスレッド上で実行）
         self._update_candle_and_detect(code, board_data)
+
+    def _check_open_price_alert(self, code: str, board_data: dict):
+        """始値ブレイク / 始値接近アラートを発報する（1日1回ずつ）"""
+        last_price = board_data.get("last_price", 0)
+        open_price = board_data.get("open", 0)
+
+        if not last_price or last_price <= 0:
+            return
+        if not open_price or open_price <= 0:
+            return
+
+        today = date.today()
+
+        # アラート状態を初期化（日付が変わったらリセット）
+        state = self._open_alerts.get(code, {})
+        if state.get("date") != today:
+            state = {"approach": False, "break": False, "date": today}
+            self._open_alerts[code] = state
+
+        symbol_name = board_data.get("symbol_name", code)
+
+        # ── 始値ブレイクアラート（始値を超えた！）
+        if not state["break"] and last_price > open_price:
+            state["break"] = True
+            state["approach"] = True  # 接近アラートもスキップ
+            self._alert_popup.show(
+                symbol      = code,
+                symbol_name = symbol_name,
+                price       = last_price,
+                pattern     = "open_break",
+                detail      = f"始値 {open_price:.0f} ブレイク！ 現在値 {last_price:.0f}",
+            )
+            logger.info(f"[始値ブレイク] {code} {last_price:.0f} > 始値{open_price:.0f}")
+            return
+
+        # ── 始値接近アラート（始値の98%以上に来た）
+        if not state["approach"] and last_price >= open_price * 0.98:
+            state["approach"] = True
+            self._alert_popup.show(
+                symbol      = code,
+                symbol_name = symbol_name,
+                price       = last_price,
+                pattern     = "open_approach",
+                detail      = f"始値 {open_price:.0f} まであと {open_price - last_price:.0f}円",
+            )
+            logger.info(f"[始値接近] {code} {last_price:.0f} / 始値{open_price:.0f}")
+
+    def _check_ou_alert(self, code: str, board_data: dict):
+        """OVER/UNDER 逆転アラートを発報する
+
+        「OVERが多い状態」→「UNDERが多い状態」に切り替わった瞬間に発報（買いシグナル）
+        「UNDERが多い状態」→「OVERが多い状態」に切り替わった瞬間に発報（売りシグナル）
+        5%以上の差がある場合のみ優勢判定。拮抗中は前回の状態を維持（リセットしない）。
+        """
+        # 現在値が0（寄り前）はスキップ
+        if not board_data.get("last_price"):
+            return
+
+        over_qty  = int(board_data.get("over_qty")  or 0)
+        under_qty = int(board_data.get("under_qty") or 0)
+        total     = over_qty + under_qty
+        if total == 0:
+            return
+
+        # 5%以上の差がある場合のみ優勢判定
+        ratio = (over_qty - under_qty) / total  # 正 → OVER優勢, 負 → UNDER優勢
+        if abs(ratio) < 0.05:
+            return  # 拮抗中 → 前回の状態を維持（リセットしない）
+
+        current_side = "OVER" if ratio > 0 else "UNDER"
+        prev_side    = self._ou_state.get(code, "")
+
+        # 前回と同じサイドなら何もしない
+        if current_side == prev_side:
+            return
+
+        # 優勢サイドが逆転した → アラート発報
+        self._ou_state[code] = current_side
+        symbol_name = board_data.get("symbol_name", code)
+        last_price  = board_data.get("last_price", 0)
+
+        if current_side == "UNDER":
+            pattern = "ou_under"
+            detail  = (f"UNDER {under_qty:,} > OVER {over_qty:,}  "
+                       f"買い圧力が売り圧力を上回った")
+            logger.info(f"[O/U逆転→UNDER優勢] {code} "
+                        f"UNDER={under_qty} OVER={over_qty}")
+        else:
+            pattern = "ou_over"
+            detail  = (f"OVER {over_qty:,} > UNDER {under_qty:,}  "
+                       f"売り圧力が買い圧力を上回った")
+            logger.info(f"[O/U逆転→OVER優勢] {code} "
+                        f"OVER={over_qty} UNDER={under_qty}")
+
+        self._alert_popup.show(
+            symbol      = code,
+            symbol_name = symbol_name,
+            price       = last_price,
+            pattern     = pattern,
+            detail      = detail,
+        )
 
     def _update_candle_and_detect(self, code: str, board_data: dict):
         """5分足を更新し、ペナントブレイクを検知してアラートを発報する"""
@@ -312,3 +442,19 @@ class MainWindow:
         """終了処理（ウィンドウ位置を保存してから終了）"""
         self._save_settings()   # 閉じる直前に位置・銘柄を保存
         self.polling = False
+
+        # ── 内部状態をクリア（起動時の残存データ防止）
+        self._candle_builder.clear_all()
+        self._last_alert.clear()
+        self._ou_state.clear()
+        self._open_alerts.clear()
+
+        # ── AlertPopup をクリア
+        for popup in self._alert_popup._active[:]:
+            try:
+                popup.destroy()
+            except:
+                pass
+        self._alert_popup._active.clear()
+
+        logger.info("[MainWindow] シャットダウン処理完了：すべての内部状態をクリアしました")

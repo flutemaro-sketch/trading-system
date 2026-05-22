@@ -420,18 +420,32 @@ class BoardUnit(tk.Frame):
             self.on_slot_change(self.unit_key, idx, code)
 
     def _on_tab_dblclick(self, idx: int):
-        """タブダブルクリック: 証券コード入力ダイアログ"""
+        """タブダブルクリック: 証券コード入力ダイアログ
+        空欄のまま OK → スロットを削除
+        """
         current = self.a_codes[idx] if self.a_codes[idx] else ""
         code = simpledialog.askstring(
             "銘柄入力",
-            f"スロット {idx + 1}  証券コードを入力：",
+            f"スロット {idx + 1}  証券コードを入力：\n（空欄のままOKで削除）",
             initialvalue=current,
             parent=self.winfo_toplevel(),
         )
         if code is None:   # キャンセル
             return
         code = code.strip()
+
+        # 空欄 → スロット削除
         if not code:
+            old_code = self.a_codes[idx]
+            if old_code:
+                if self.on_unsubscribe:
+                    self.on_unsubscribe(self.unit_key, old_code)
+                if self.on_slot_change:
+                    self.on_slot_change(self.unit_key, idx, "")
+            self.set_a_slot(idx, "", "")
+            if self.current_idx == idx:
+                self._clear_b()
+                self.current_idx = -1
             return
 
         # 銘柄名を辞書から取得（未登録ならコードのまま）

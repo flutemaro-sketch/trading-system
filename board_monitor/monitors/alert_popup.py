@@ -15,12 +15,24 @@ logger = logging.getLogger(__name__)
 # パターン → 表示ラベル
 PATTERN_LABELS = {
     "pennant_break_up": "▲ ペナントブレイク（上抜け）",
+    "open_break":       "🔴 始値ブレイク！",
+    "open_approach":    "🟡 始値接近",
+    "ou_under":         "🟢 UNDER優勢（買い圧力↑）",
+    "ou_over":          "🟣 OVER優勢（売り圧力↑）",
 }
 
-# ポップアップの色設定
-POPUP_BG   = "#cc2200"   # 背景（濃い赤）
+# パターン → 背景色  (fg は常に白)
+PATTERN_COLORS = {
+    "pennant_break_up": "#cc2200",   # 濃い赤
+    "open_break":       "#cc4400",   # オレンジ赤
+    "open_approach":    "#886600",   # 黄土色
+    "ou_under":         "#006633",   # 深緑（買いシグナル）
+    "ou_over":          "#550077",   # 紫（売りシグナル）
+}
+DEFAULT_BG = "#333333"   # 上記以外のパターン
+
 POPUP_FG   = "#ffffff"   # 文字（白）
-POPUP_W    = 340         # 幅(px)
+POPUP_W    = 360         # 幅(px)
 POPUP_H    = 90          # 高さ(px)
 POPUP_GAP  = 8           # ポップアップ間の隙間
 
@@ -55,10 +67,12 @@ class AlertPopup:
         """
         self._play_sound(pattern)
 
+        bg = PATTERN_COLORS.get(pattern, DEFAULT_BG)
+
         popup = tk.Toplevel(self.root)
         popup.overrideredirect(True)    # タイトルバーなし
         popup.attributes("-topmost", True)
-        popup.configure(bg=POPUP_BG)
+        popup.configure(bg=bg)
 
         # ── 位置: 画面右上・スタック
         sw  = self.root.winfo_screenwidth()
@@ -71,7 +85,7 @@ class AlertPopup:
         label_text = PATTERN_LABELS.get(pattern, pattern)
         tk.Label(
             popup, text=label_text,
-            bg=POPUP_BG, fg=POPUP_FG,
+            bg=bg, fg=POPUP_FG,
             font=("Courier New", 13, "bold"),
             anchor="center",
         ).pack(fill=tk.X, pady=(10, 2))
@@ -80,7 +94,7 @@ class AlertPopup:
         tk.Label(
             popup,
             text=f"{symbol}  {name_str}  {price:,.1f}円",
-            bg=POPUP_BG, fg=POPUP_FG,
+            bg=bg, fg=POPUP_FG,
             font=("Courier New", 11),
             anchor="center",
         ).pack(fill=tk.X)
@@ -88,7 +102,7 @@ class AlertPopup:
         if detail:
             tk.Label(
                 popup, text=detail,
-                bg=POPUP_BG, fg="#ffcccc",
+                bg=bg, fg="#dddddd",
                 font=("Courier New", 9),
                 anchor="center",
             ).pack(fill=tk.X)
@@ -115,14 +129,32 @@ class AlertPopup:
 
     @staticmethod
     def _play_sound(pattern: str):
-        """Windows winsound でアラート音を鳴らす"""
+        """Windows winsound でパターン別アラート音を鳴らす"""
         try:
             import winsound
             import threading
+
             def _beep():
-                # 上昇系: 高めの2音
-                winsound.Beep(1400, 150)
-                winsound.Beep(1800, 250)
+                if pattern in ("pennant_break_up", "open_break"):
+                    # 上昇系: 高めの2音（ド・ミ）
+                    winsound.Beep(1400, 150)
+                    winsound.Beep(1800, 250)
+                elif pattern == "open_approach":
+                    # 接近: 短め1音
+                    winsound.Beep(1200, 200)
+                elif pattern == "ou_under":
+                    # UNDER優勢（買いシグナル）: 上昇3音
+                    winsound.Beep(1000, 100)
+                    winsound.Beep(1300, 100)
+                    winsound.Beep(1600, 200)
+                elif pattern == "ou_over":
+                    # OVER優勢（売りシグナル）: 下降3音
+                    winsound.Beep(1600, 100)
+                    winsound.Beep(1200, 100)
+                    winsound.Beep(900,  200)
+                else:
+                    winsound.Beep(1000, 200)
+
             threading.Thread(target=_beep, daemon=True).start()
         except Exception:
             pass

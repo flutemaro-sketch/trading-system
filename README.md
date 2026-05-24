@@ -33,17 +33,46 @@
 
 ```
 trading-system/
-├── SPEC.md           # 仕様書
-├── CLAUDE.md         # 開発ルール・進捗状況
-├── README.md         # 本ファイル
-├── .gitignore        # Git除外設定
-├── requirements.txt  # Pythonパッケージ一覧
-├── .env              # 機密情報(JQuantsトークン等・kabuAPI) - Git除外
-├── data/             # 入力データ(銘柄リストCSV等)
-├── output/           # 出力データ(日次スコアリング結果CSV)
-├── src/              # 前日検討システム
-└── board_monitor/    # 板監視システム（Tkinter GUI）
+├── SPEC.md                  # 仕様書
+├── CLAUDE.md                # 開発ルール・進捗状況
+├── README.md                # 本ファイル
+├── .gitignore               # Git除外設定
+├── requirements.txt         # Pythonパッケージ一覧
+├── .env                     # 機密情報(JQuantsトークン等・kabuAPI) - Git除外
+├── data/                    # 入力データ(銘柄リストCSV等)
+├── output/                  # 出力データ(日次スコアリング結果CSV)
+├── src/                     # 前日検討システム
+├── board_monitor/           # 板監視システム（Tkinter GUI）
+├── learning-data/           # パターン学習データ
+│   ├── PATTERNS.md          # 学習パターン記録（メインドキュメント）
+│   ├── up-patterns/         # 上がるパターンのスクショ
+│   └── down-patterns/       # 下がるパターンのスクショ
+└── pattern_learning/        # 過去の検知実績・分析
+    ├── analysis/            # 日別分析レポート（.md）
+    └── database/            # 検知データ（.json）
 ```
+
+## パターン学習システム
+
+スクショを見せながら少しずつパターンを学習し、検知ロジックに落とし込む仕組み。
+
+**学習フロー:**
+1. スクショを `learning-data/up-patterns/` または `down-patterns/` に保存
+2. `learning-data/PATTERNS.md` にパターン条件を記録
+3. 条件が固まったら検知ロジックをコードに実装
+
+**現在実装済みパターン:**
+- ▲ ペナント上抜け（`pennant_detector.py`）
+- ▲ 始値ブレイク / 始値接近
+- ▲ OVER/UNDER逆転（買い圧力増加）
+
+**学習予定パターン:**
+- ▼ 始値抵抗で跳ね返し
+- ▼ VWAP抵抗で反落
+- ▼ 移動平均線全下向き + VWAP下 + 板悪化
+- ▼ ペナント下抜け
+
+詳細は [`learning-data/PATTERNS.md`](./learning-data/PATTERNS.md) を参照。
 
 ## セットアップ手順
 

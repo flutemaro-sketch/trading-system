@@ -1,0 +1,56 @@
+{
+  "date": "2026-05-25",
+  "total_signals": 29,
+  "market_condition": "強い上昇相場（AI・半導体・防衛・宇宙全面高）",
+  "signals": [
+    {"no": 1,  "time": "09:40:01", "code": "6594", "name": "ニデック",             "price": 2844.0,  "session": "前場", "outcome": "上昇"},
+    {"no": 2,  "time": "09:45:00", "code": "3110", "name": "日本製鋼所",           "price": 27170.0, "session": "前場", "outcome": "上昇"},
+    {"no": 3,  "time": "09:50:00", "code": "4062", "name": "イビデン",             "price": 21110.0, "session": "前場", "outcome": "上昇"},
+    {"no": 4,  "time": "10:29:59", "code": "5803", "name": "フジクラ",             "price": 5384.0,  "session": "前場", "outcome": "上昇"},
+    {"no": 5,  "time": "10:30:00", "code": "285A", "name": "キオクシアHD",         "price": 62220.0, "session": "前場", "outcome": "上昇"},
+    {"no": 6,  "time": "10:30:00", "code": "186A", "name": "アストロスケールHD",   "price": 2723.0,  "session": "前場", "outcome": "上昇"},
+    {"no": 7,  "time": "10:40:00", "code": "9984", "name": "ソフトバンクG",        "price": 7242.0,  "session": "前場", "outcome": "上昇"},
+    {"no": 8,  "time": "10:40:05", "code": "402A", "name": "アクセルスペースHD",   "price": 881.0,   "session": "前場", "outcome": "上昇"},
+    {"no": 9,  "time": "10:45:00", "code": "285A", "name": "キオクシアHD",         "price": 63090.0, "session": "前場", "outcome": "上昇", "repeat": 2},
+    {"no": 10, "time": "11:00:00", "code": "285A", "name": "キオクシアHD",         "price": 63770.0, "session": "前場", "outcome": "上昇", "repeat": 3},
+    {"no": 11, "time": "11:10:00", "code": "6981", "name": "村田製作所",           "price": 8067.0,  "session": "前場", "outcome": "上昇"},
+    {"no": 12, "time": "11:15:03", "code": "336A", "name": "ダイナミックマップ",   "price": 999.0,   "session": "前場", "outcome": "上昇"},
+    {"no": 13, "time": "11:15:07", "code": "402A", "name": "アクセルスペースHD",   "price": 894.0,   "session": "前場", "outcome": "上昇", "repeat": 2},
+    {"no": 14, "time": "11:30:00", "code": "402A", "name": "アクセルスペースHD",   "price": 900.0,   "session": "前場", "outcome": "上昇", "repeat": 3},
+    {"no": 15, "time": "11:30:00", "code": "336A", "name": "ダイナミックマップ",   "price": 992.0,   "session": "前場", "outcome": "上昇", "repeat": 2},
+    {"no": 16, "time": "12:34:59", "code": "3110", "name": "日本製鋼所",           "price": 28420.0, "session": "後場", "outcome": "上昇", "repeat": 2},
+    {"no": 17, "time": "12:35:00", "code": "6981", "name": "村田製作所",           "price": 8255.0,  "session": "後場", "outcome": "上昇", "repeat": 2},
+    {"no": 18, "time": "12:35:02", "code": "9348", "name": "（小型株）",           "price": 602.0,   "session": "後場", "outcome": "上昇"},
+    {"no": 19, "time": "12:44:59", "code": "285A", "name": "キオクシアHD",         "price": 65120.0, "session": "後場", "outcome": "上昇", "repeat": 4},
+    {"no": 20, "time": "12:49:59", "code": "6981", "name": "村田製作所",           "price": 8403.0,  "session": "後場", "outcome": "上昇", "repeat": 3},
+    {"no": 21, "time": "12:50:00", "code": "3110", "name": "日本製鋼所",           "price": 28210.0, "session": "後場", "outcome": "上昇", "repeat": 3},
+    {"no": 22, "time": "12:50:02", "code": "9348", "name": "（小型株）",           "price": 606.0,   "session": "後場", "outcome": "上昇", "repeat": 2},
+    {"no": 23, "time": "13:04:59", "code": "402A", "name": "アクセルスペースHD",   "price": 911.0,   "session": "後場", "outcome": "上昇", "repeat": 4},
+    {"no": 24, "time": "13:05:03", "code": "9348", "name": "（小型株）",           "price": 614.0,   "session": "後場", "outcome": "上昇", "repeat": 3},
+    {"no": 25, "time": "13:05:04", "code": "336A", "name": "ダイナミックマップ",   "price": 1002.0,  "session": "後場", "outcome": "上昇", "repeat": 3},
+    {"no": 26, "time": "13:15:00", "code": "186A", "name": "アストロスケールHD",   "price": 2826.0,  "session": "後場", "outcome": "上昇", "repeat": 2},
+    {"no": 27, "time": "13:29:59", "code": "186A", "name": "アストロスケールHD",   "price": 2846.0,  "session": "後場", "outcome": "上昇", "repeat": 3},
+    {"no": 28, "time": "15:30:00", "code": "5016", "name": "石油資源開発",         "price": 4261.0,  "session": "後場", "outcome": "不明"},
+    {"no": 29, "time": "15:30:00", "code": "5803", "name": "フジクラ",             "price": 5550.0,  "session": "後場", "outcome": "上昇", "repeat": 2}
+  ],
+  "multi_signal_stocks": [
+    {"code": "285A", "name": "キオクシアHD",       "count": 4, "prices": [62220, 63090, 63770, 65120]},
+    {"code": "402A", "name": "アクセルスペースHD", "count": 4, "prices": [881, 894, 900, 911]},
+    {"code": "186A", "name": "アストロスケールHD", "count": 3, "prices": [2723, 2826, 2846]},
+    {"code": "6981", "name": "村田製作所",         "count": 3, "prices": [8067, 8255, 8403]},
+    {"code": "336A", "name": "ダイナミックマップ", "count": 3, "prices": [999, 992, 1002]},
+    {"code": "3110", "name": "日本製鋼所",         "count": 3, "prices": [27170, 28420, 28210]},
+    {"code": "9348", "name": "（小型株）",         "count": 3, "prices": [602, 606, 614]},
+    {"code": "5803", "name": "フジクラ",           "count": 2, "prices": [5384, 5550]}
+  ],
+  "lessons_learned": [
+    "285A・402A が4回発報 = 強烈な上昇継続シグナル",
+    "前場の始値ブレイク組（ニデック・イビデン・ソフトバンク）はペナント前に既に大きく動いていた",
+    "後場スタート直後（12:34〜12:35）に複数銘柄が同時発報 = 後場の地合い確認ポイント",
+    "336Aが1,000円のキリ番で発報 → キリ番突破のペナントは強い",
+    "始値割れ後の回復アラートを新実装（本日から有効）"
+  ],
+  "system_improvements": [
+    "始値割れ後の回復アラート実装（③オプション）"
+  ]
+}

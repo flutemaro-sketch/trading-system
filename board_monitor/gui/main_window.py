@@ -171,7 +171,7 @@ class MainWindow:
         self._update_candle_and_detect(code, board_data)
 
     def _check_open_price_alert(self, code: str, board_data: dict):
-        """始値ブレイク / 始値接近アラートを発報する（1日1回ずつ）"""
+        """始値ブレイク / 始値接近 / 始値割れ後の回復アラートを発報する"""
         last_price = board_data.get("last_price", 0)
         open_price = board_data.get("open", 0)
 
@@ -185,15 +185,16 @@ class MainWindow:
         # アラート状態を初期化（日付が変わったらリセット）
         state = self._open_alerts.get(code, {})
         if state.get("date") != today:
-            state = {"approach": False, "break": False, "date": today}
+            state = {"approach": False, "break": False, "below_open": False, "date": today}
             self._open_alerts[code] = state
 
         symbol_name = board_data.get("symbol_name", code)
 
-        # ── 始値ブレイクアラート（始値を超えた！）
+        # ── 始値ブレイクアラート（初回：始値を初めて超えた）
         if not state["break"] and last_price > open_price:
             state["break"] = True
             state["approach"] = True  # 接近アラートもスキップ
+            state["below_open"] = False
             self._alert_popup.show(
                 symbol      = code,
                 symbol_name = symbol_name,
@@ -202,6 +203,23 @@ class MainWindow:
                 detail      = f"始値 {open_price:.0f} ブレイク！ 現在値 {last_price:.0f}",
             )
             logger.info(f"[始値ブレイク] {code} {last_price:.0f} > 始値{open_price:.0f}")
+            return
+
+        # ── 始値を割り込んだ状態を記録
+        if state["break"] and last_price < open_price:
+            state["below_open"] = True
+
+        # ── 始値割れ後の回復アラート（始値を割った後に再ブレイク）
+        if state["break"] and state["below_open"] and last_price > open_price:
+            state["below_open"] = False
+            self._alert_popup.show(
+                symbol      = code,
+                symbol_name = symbol_name,
+                price       = last_price,
+                pattern     = "open_break",
+                detail      = f"始値 {open_price:.0f} 割れ後に回復！ 現在値 {last_price:.0f}",
+            )
+            logger.info(f"[始値割れ後の回復] {code} {last_price:.0f} > 始値{open_price:.0f}")
             return
 
         # ── 始値接近アラート（始値の98%以上に来た）
